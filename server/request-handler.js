@@ -12,7 +12,11 @@ this file and include it in basic-server.js so that it actually works.
 
 **************************************************************/
 var url = require("url");
+ var Data = function(){
+    this.results = [];
+  }
 
+  var data = new Data();
 exports.requestHandler = function(request, response) {
   // Request and Response come from node's http module.
   //
@@ -47,14 +51,11 @@ exports.requestHandler = function(request, response) {
   // which includes the status and all headers.
   //response.writeHead(statusCode, headers);
 
-  var Data = function(){
-    this.results = [];
-  }
-
-  var data = new Data();
-
+ 
+  headers['Content-Type'] = "application/json";
   parsedURL = url.parse(request.url);
-
+  splitURL = parsedURL.pathname.slice(1).split("/");
+  console.log(splitURL);
   if(request.method === 'OPTIONS'){
     headers['access-control-allow-origin'] = request.headers.origin || '*';
     response.writeHead(204, "No content", headers)
@@ -62,14 +63,16 @@ exports.requestHandler = function(request, response) {
   }
 
   if(parsedURL.pathname === '/classes/messages'){
-    headers['Content-Type'] = "application/json";
+    
 
 
     if(request.method === 'POST'){
+      var body = '';
       request.on('data', function(chunk){
-        data.results.push(chunk.toString());
+        body += chunk;
       });
-      request.on('end', function(){      
+      request.on('end', function(){   
+        data.results.push(JSON.parse(body));
         response.writeHead(201, headers);
         response.end();
       })
@@ -77,10 +80,26 @@ exports.requestHandler = function(request, response) {
 
     if(request.method === 'GET'){
       console.log(data);
-      response.writeHead(200, "Got it!", headers)
-      response.write(JSON.stringify(data))
+      response.writeHead(200, "Got it!", headers);
+      response.write(JSON.stringify(data));
       response.end();
     }
+  } else if (splitURL[0] === 'classes'){
+    var room = splitURL[1];
+    
+    var dataCopy = data.results.slice(0);
+    data.results = [];
+    for(var i = 0; i < dataCopy.length; i++){
+      if(dataCopy[i].roomname === room){
+        data.results.push(dataCopy[i]);
+      }
+    }
+    response.writeHead(200, "Good", headers);
+    response.write(JSON.stringify(data));
+    response.end();
+  } else {
+    response.writeHead(404, "File not found", headers);
+    response.end();
   }
 };
 
